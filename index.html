@@ -2,12 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Block Blast - MINH HAI DEVELOPER</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #4861d1;
+      background: #2a2e4a;
       color: white;
       text-align: center;
       padding: 20px;
@@ -18,17 +17,17 @@
       grid-template-columns: repeat(8, 40px);
       grid-template-rows: repeat(8, 40px);
       gap: 2px;
-      margin: 0 auto 20px;
       justify-content: center;
+      margin: 0 auto 20px;
     }
 
     .cell {
       width: 40px;
       height: 40px;
       border: 1px solid #444;
-      background-color: #a5d13d42;
+      background-color: #6b7ac4;
       box-sizing: border-box;
-      transition: background-color 0.3s;
+      transition: background-color 0.3s, transform 0.4s ease;
     }
 
     .cell.filled {
@@ -37,13 +36,10 @@
 
     .cell.highlight {
       background-color: gold !important;
-      animation: flash 0.5s ease-in-out;
     }
 
-    @keyframes flash {
-      0% { background-color: gold; }
-      50% { background-color: orange; }
-      100% { background-color: gold; }
+    .cell.shrink {
+      transform: scale(0);
     }
 
     #block-options {
@@ -58,27 +54,25 @@
       display: grid;
       gap: 2px;
       padding: 5px;
-      background: #eee;
-      border: 2px solid transparent;
+      background: transparent;
       cursor: pointer;
       width: fit-content;
       grid-template-columns: repeat(3, 1fr);
     }
 
-    .block.selected {
-      border-color: orange;
-      background: #fff8e1;
+    .block.selected .block-cell.filled {
+      outline: 2px solid orange;
     }
 
     .block-cell {
       width: 20px;
       height: 20px;
       background-color: transparent;
-      border-radius: 3px;
     }
 
     .block-cell.filled {
       background-color: steelblue;
+      border-radius: 3px;
     }
 
     button {
@@ -88,6 +82,7 @@
       border: none;
       padding: 8px 16px;
       cursor: pointer;
+      margin-top: 10px;
     }
 
     #game-over {
@@ -100,7 +95,7 @@
 </head>
 <body>
   <h1 style="color: cyan;">Block Blast</h1>
-  <H1 style="color: #a17474; font-style: italic;">MINH HAI DEVELOPER</H1>
+  <h2 style="color: #ffaaaa;">MINH HAI DEVELOPER</h2>
   <div id="board"></div>
   <div id="block-options"></div>
   <h3>Score: <span id="score">0</span></h3>
@@ -110,130 +105,110 @@
   <script>
     const board = document.getElementById("board");
     const blockOptions = document.getElementById("block-options");
-    let selectedBlock = null;
     const gridSize = 8;
     let grid = new Array(gridSize * gridSize).fill(0);
+    let blocks = [];
+    let selectedBlock = null;
     let score = 0;
-    let isGameOver = false;
 
     const blockTemplates = [
-      [[1,1,0],[1,1,0],[0,0,0]],
-      [[1,1,1],[0,0,0],[0,0,0]],
-      [[1,0,0],[1,0,0],[1,0,0]],
-      [[0,1,0],[1,1,1],[0,0,0]],
-      [[1,1,1],[1,0,0],[0,0,0]],
-      [[0,1,1],[1,1,0],[0,0,0]],
+      [[1, 1, 0], [1, 1, 0], [0, 0, 0]],
+      [[1, 1, 1], [0, 0, 0], [0, 0, 0]],
+      [[1, 0, 0], [1, 0, 0], [1, 0, 0]],
+      [[0, 1, 0], [1, 1, 1], [0, 0, 0]],
+      [[1, 1, 1], [1, 0, 0], [0, 0, 0]],
+      [[0, 1, 1], [1, 1, 0], [0, 0, 0]],
     ];
-
-    let blocks = [];
 
     function renderBoard() {
       board.innerHTML = "";
       for (let i = 0; i < gridSize * gridSize; i++) {
         const cell = document.createElement("div");
-        cell.dataset.index = i;
-        cell.classList.add("cell");
+        cell.className = "cell";
         if (grid[i] === 1) cell.classList.add("filled");
-        cell.addEventListener("click", () => handleBoardClick(i));
+        cell.dataset.index = i;
+        cell.addEventListener("click", () => placeBlock(i));
         board.appendChild(cell);
       }
     }
 
-    function drawBlockOptions() {
-      blockOptions.innerHTML = "";
-      blocks.forEach((blockMatrix, i) => {
-        const block = document.createElement("div");
-        block.classList.add("block");
-        block.dataset.blockId = i;
-        if (selectedBlock === i) block.classList.add("selected");
-
-        blockMatrix.flat().forEach(value => {
-          const cell = document.createElement("div");
-          cell.classList.add("block-cell");
-          if (value === 1) {
-            cell.classList.add("filled");
-          } else {
-            cell.style.visibility = "hidden";
-          }
-          block.appendChild(cell);
-        });
-
-        block.addEventListener("click", () => {
-          selectedBlock = i;
-          drawBlockOptions();
-        });
-
-        blockOptions.appendChild(block);
-      });
-    }
-
     function generateRandomBlocks() {
-      blocks.length = 0;
+      blocks = [];
       for (let i = 0; i < 3; i++) {
-        const randIndex = Math.floor(Math.random() * blockTemplates.length);
-        const clone = blockTemplates[randIndex].map(row => [...row]);
-        blocks.push(clone);
+        const block = blockTemplates[Math.floor(Math.random() * blockTemplates.length)];
+        blocks.push(block.map(row => [...row]));
       }
     }
 
-    function handleBoardClick(index) {
-      if (selectedBlock === null) return;
+    function renderBlocks() {
+      blockOptions.innerHTML = "";
+      blocks.forEach((block, i) => {
+        const div = document.createElement("div");
+        div.className = "block";
+        if (selectedBlock === i) div.classList.add("selected");
+        block.flat().forEach(val => {
+          const cell = document.createElement("div");
+          cell.className = "block-cell";
+          if (val === 1) cell.classList.add("filled");
+          else cell.style.visibility = "hidden";
+          div.appendChild(cell);
+        });
+        div.addEventListener("click", () => {
+          selectedBlock = i;
+          renderBlocks();
+        });
+        blockOptions.appendChild(div);
+      });
+    }
 
+    function placeBlock(index) {
+      if (selectedBlock === null) return;
       const row = Math.floor(index / gridSize);
       const col = index % gridSize;
       const block = blocks[selectedBlock];
 
       for (let i = 0; i < 3; i++) {
         for (let j = 0; j < 3; j++) {
-          const value = block[i][j];
-          if (value === 0) continue;
+          if (block[i][j] === 0) continue;
           const r = row + i;
           const c = col + j;
           if (r >= gridSize || c >= gridSize) return;
-          const idx = r * gridSize + c;
-          if (grid[idx] === 1) return;
+          if (grid[r * gridSize + c] === 1) return;
         }
       }
 
       for (let i = 0; i < 3; i++) {
         for (let j = 0; j < 3; j++) {
-          const value = block[i][j];
-          if (value === 0) continue;
-          const r = row + i;
-          const c = col + j;
-          const idx = r * gridSize + c;
-          grid[idx] = 1;
+          if (block[i][j] === 1) {
+            const r = row + i;
+            const c = col + j;
+            grid[r * gridSize + c] = 1;
+          }
         }
       }
 
-      clearFullLines();
-      updateScoreDisplay();
       blocks.splice(selectedBlock, 1);
       selectedBlock = null;
+      renderBlocks();
+      renderBoard();
+      clearLines();
 
       if (blocks.length === 0) {
         generateRandomBlocks();
+        renderBlocks();
       }
 
-      renderBoard();
-      drawBlockOptions();
-
       if (!canPlaceAnyBlock()) {
-        isGameOver = true;
-        setTimeout(() => {
-          document.getElementById("game-over").style.display = "block";
-        }, 100);
+        document.getElementById("game-over").style.display = "block";
       }
     }
 
-    function clearFullLines() {
-      let rowsToClear = [];
-      let colsToClear = [];
+    function clearLines() {
+      const rows = [];
+      const cols = [];
 
       for (let r = 0; r < gridSize; r++) {
-        if (grid.slice(r * gridSize, (r + 1) * gridSize).every(cell => cell === 1)) {
-          rowsToClear.push(r);
-        }
+        if (grid.slice(r * gridSize, (r + 1) * gridSize).every(v => v === 1)) rows.push(r);
       }
 
       for (let c = 0; c < gridSize; c++) {
@@ -244,55 +219,70 @@
             break;
           }
         }
-        if (full) colsToClear.push(c);
+        if (full) cols.push(c);
       }
 
-      rowsToClear.forEach(r => {
+      if (rows.length === 0 && cols.length === 0) return;
+
+      rows.forEach(r => {
         for (let c = 0; c < gridSize; c++) {
           const cell = board.children[r * gridSize + c];
           if (cell) cell.classList.add("highlight");
         }
       });
 
-      colsToClear.forEach(c => {
+      cols.forEach(c => {
         for (let r = 0; r < gridSize; r++) {
           const cell = board.children[r * gridSize + c];
           if (cell) cell.classList.add("highlight");
         }
       });
 
-      if (rowsToClear.length > 0 || colsToClear.length > 0) {
+      setTimeout(() => {
+        rows.forEach(r => {
+          for (let c = 0; c < gridSize; c++) {
+            const idx = r * gridSize + c;
+            grid[idx] = 0;
+            const cell = board.children[idx];
+            if (cell) {
+              cell.classList.add("shrink");
+              setTimeout(() => cell.classList.remove("shrink"), 300);
+            }
+          }
+        });
+
+        cols.forEach(c => {
+          for (let r = 0; r < gridSize; r++) {
+            const idx = r * gridSize + c;
+            grid[idx] = 0;
+            const cell = board.children[idx];
+            if (cell) {
+              cell.classList.add("shrink");
+              setTimeout(() => cell.classList.remove("shrink"), 300);
+            }
+          }
+        });
+
+        score += (rows.length + cols.length) * 10;
         setTimeout(() => {
-          rowsToClear.forEach(r => {
-            for (let c = 0; c < gridSize; c++) {
-              grid[r * gridSize + c] = 0;
-            }
-          });
-          colsToClear.forEach(c => {
-            for (let r = 0; r < gridSize; r++) {
-              grid[r * gridSize + c] = 0;
-            }
-          });
-          score += (rowsToClear.length + colsToClear.length) * 10;
           renderBoard();
-          updateScoreDisplay();
-        }, 500);
-      }
+          document.getElementById("score").textContent = score;
+        }, 350);
+      }, 400);
     }
 
     function canPlaceAnyBlock() {
-      for (let b = 0; b < blocks.length; b++) {
-        const block = blocks[b];
+      for (const block of blocks) {
         for (let r = 0; r <= gridSize - 3; r++) {
           for (let c = 0; c <= gridSize - 3; c++) {
-            if (canPlaceBlockAt(block, r, c)) return true;
+            if (canPlaceAt(block, r, c)) return true;
           }
         }
       }
       return false;
     }
 
-    function canPlaceBlockAt(block, row, col) {
+    function canPlaceAt(block, row, col) {
       for (let i = 0; i < 3; i++) {
         for (let j = 0; j < 3; j++) {
           if (block[i][j] === 0) continue;
@@ -308,22 +298,18 @@
     function restartGame() {
       grid = new Array(gridSize * gridSize).fill(0);
       score = 0;
-      isGameOver = false;
+      selectedBlock = null;
       document.getElementById("game-over").style.display = "none";
       generateRandomBlocks();
       renderBoard();
-      drawBlockOptions();
-      updateScoreDisplay();
-    }
-
-    function updateScoreDisplay() {
+      renderBlocks();
       document.getElementById("score").textContent = score;
     }
 
+    // Init
     generateRandomBlocks();
     renderBoard();
-    drawBlockOptions();
-    updateScoreDisplay();
+    renderBlocks();
   </script>
 </body>
 </html>
