@@ -1,32 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <title>Block Blast - MINH HAI DEVELOPER</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: Arial, sans-serif;
       background: #2a2e4a;
       color: white;
       text-align: center;
-      padding: 20px;
+      margin: 0;
+      padding: 10px;
+    }
+
+    h1, h2 {
+      margin: 5px 0;
+    }
+
+    #player-name {
+      padding: 8px;
+      margin: 10px 0;
+      width: 90%;
+      max-width: 300px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
     }
 
     #board {
       display: grid;
-      grid-template-columns: repeat(8, 40px);
-      grid-template-rows: repeat(8, 40px);
+      grid-template-columns: repeat(8, 1fr);
       gap: 2px;
-      justify-content: center;
+      max-width: 95vw;
+      width: 320px;
       margin: 0 auto 20px;
     }
 
     .cell {
-      width: 40px;
-      height: 40px;
-      border: 1px solid #444;
+      aspect-ratio: 1/1;
       background-color: #6b7ac4;
-      box-sizing: border-box;
       transition: background-color 0.3s, transform 0.4s ease;
     }
 
@@ -44,24 +61,18 @@
 
     #block-options {
       display: flex;
-      gap: 20px;
-      margin-top: 20px;
       flex-wrap: wrap;
       justify-content: center;
+      gap: 10px;
+      margin: 10px auto;
     }
 
     .block {
       display: grid;
+      grid-template-columns: repeat(3, 1fr);
       gap: 2px;
       padding: 5px;
-      background: transparent;
       cursor: pointer;
-      width: fit-content;
-      grid-template-columns: repeat(3, 1fr);
-    }
-
-    .block.selected .block-cell.filled {
-      outline: 2px solid orange;
     }
 
     .block-cell {
@@ -75,38 +86,83 @@
       border-radius: 3px;
     }
 
+    .block.selected .block-cell.filled {
+      outline: 2px solid orange;
+    }
+
     button {
-      font-size: 120%;
       background: #a17474;
       color: white;
       border: none;
-      padding: 8px 16px;
-      cursor: pointer;
+      padding: 10px 20px;
+      font-size: 16px;
       margin-top: 10px;
+      border-radius: 5px;
+      cursor: pointer;
     }
 
     #game-over {
-      font-size: 24px;
+      font-size: 22px;
       color: red;
+      margin: 10px 0;
       display: none;
-      margin-top: 20px;
+    }
+
+    #leaderboard {
+      margin-top: 30px;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #leaderboard h3 {
+      color: gold;
+    }
+
+    #leaderboard ol {
+      padding-left: 20px;
+      text-align: left;
+    }
+
+    @media (max-width: 400px) {
+      .block-cell {
+        width: 16px;
+        height: 16px;
+      }
+
+      #board {
+        width: 280px;
+      }
+
+      .cell {
+        width: 100%;
+      }
     }
   </style>
 </head>
 <body>
   <h1 style="color: cyan;">Block Blast</h1>
   <h2 style="color: #ffaaaa;">MINH HAI DEVELOPER</h2>
+
+  <input type="text" id="player-name" placeholder="Nhập tên bạn..." maxlength="20" />
   <div id="board"></div>
   <div id="block-options"></div>
+
   <h3>Score: <span id="score">0</span></h3>
   <div id="game-over">Game Over!</div>
   <button onclick="restartGame()">Restart</button>
 
+  <div id="leaderboard">
+    <h3>Bảng Xếp Hạng (Top 5)</h3>
+    <ol id="leaderboard-list"></ol>
+  </div>
+
   <script>
     const board = document.getElementById("board");
     const blockOptions = document.getElementById("block-options");
+    const leaderboardList = document.getElementById("leaderboard-list");
     const gridSize = 8;
-    let grid = new Array(gridSize * gridSize).fill(0);
+    let grid = Array(gridSize * gridSize).fill(0);
     let blocks = [];
     let selectedBlock = null;
     let score = 0;
@@ -172,8 +228,7 @@
           if (block[i][j] === 0) continue;
           const r = row + i;
           const c = col + j;
-          if (r >= gridSize || c >= gridSize) return;
-          if (grid[r * gridSize + c] === 1) return;
+          if (r >= gridSize || c >= gridSize || grid[r * gridSize + c] === 1) return;
         }
       }
 
@@ -200,12 +255,13 @@
 
       if (!canPlaceAnyBlock()) {
         document.getElementById("game-over").style.display = "block";
+        saveToLeaderboard(score);
+        renderLeaderboard();
       }
     }
 
     function clearLines() {
-      const rows = [];
-      const cols = [];
+      const rows = [], cols = [];
 
       for (let r = 0; r < gridSize; r++) {
         if (grid.slice(r * gridSize, (r + 1) * gridSize).every(v => v === 1)) rows.push(r);
@@ -214,10 +270,7 @@
       for (let c = 0; c < gridSize; c++) {
         let full = true;
         for (let r = 0; r < gridSize; r++) {
-          if (grid[r * gridSize + c] === 0) {
-            full = false;
-            break;
-          }
+          if (grid[r * gridSize + c] === 0) full = false;
         }
         if (full) cols.push(c);
       }
@@ -227,14 +280,14 @@
       rows.forEach(r => {
         for (let c = 0; c < gridSize; c++) {
           const cell = board.children[r * gridSize + c];
-          if (cell) cell.classList.add("highlight");
+          cell.classList.add("highlight");
         }
       });
 
       cols.forEach(c => {
         for (let r = 0; r < gridSize; r++) {
           const cell = board.children[r * gridSize + c];
-          if (cell) cell.classList.add("highlight");
+          cell.classList.add("highlight");
         }
       });
 
@@ -243,11 +296,7 @@
           for (let c = 0; c < gridSize; c++) {
             const idx = r * gridSize + c;
             grid[idx] = 0;
-            const cell = board.children[idx];
-            if (cell) {
-              cell.classList.add("shrink");
-              setTimeout(() => cell.classList.remove("shrink"), 300);
-            }
+            board.children[idx].classList.add("shrink");
           }
         });
 
@@ -255,11 +304,7 @@
           for (let r = 0; r < gridSize; r++) {
             const idx = r * gridSize + c;
             grid[idx] = 0;
-            const cell = board.children[idx];
-            if (cell) {
-              cell.classList.add("shrink");
-              setTimeout(() => cell.classList.remove("shrink"), 300);
-            }
+            board.children[idx].classList.add("shrink");
           }
         });
 
@@ -288,15 +333,14 @@
           if (block[i][j] === 0) continue;
           const r = row + i;
           const c = col + j;
-          if (r >= gridSize || c >= gridSize) return false;
-          if (grid[r * gridSize + c] === 1) return false;
+          if (r >= gridSize || c >= gridSize || grid[r * gridSize + c] === 1) return false;
         }
       }
       return true;
     }
 
     function restartGame() {
-      grid = new Array(gridSize * gridSize).fill(0);
+      grid = Array(gridSize * gridSize).fill(0);
       score = 0;
       selectedBlock = null;
       document.getElementById("game-over").style.display = "none";
@@ -306,10 +350,27 @@
       document.getElementById("score").textContent = score;
     }
 
+    function saveToLeaderboard(newScore) {
+      const name = document.getElementById("player-name").value.trim() || "Người chơi";
+      let leaderboard = JSON.parse(localStorage.getItem("blockblast_leaderboard") || "[]");
+      leaderboard.push({ name, score: newScore });
+      leaderboard.sort((a, b) => b.score - a.score);
+      leaderboard = leaderboard.slice(0, 5);
+      localStorage.setItem("blockblast_leaderboard", JSON.stringify(leaderboard));
+    }
+
+    function renderLeaderboard() {
+      const leaderboard = JSON.parse(localStorage.getItem("blockblast_leaderboard") || "[]");
+      leaderboardList.innerHTML = leaderboard
+        .map((entry, i) => `<li>#${i + 1}: ${entry.name} - ${entry.score} điểm</li>`)
+        .join("");
+    }
+
     // Init
     generateRandomBlocks();
     renderBoard();
     renderBlocks();
+    renderLeaderboard();
   </script>
 </body>
 </html>
